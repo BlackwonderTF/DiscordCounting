@@ -1,6 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
-using System.Text.Json;
+using Helper;
 using SlashHandler = System.Func<Discord.WebSocket.SocketSlashCommand, bool>;
 
 DiscordSocketConfig config = new DiscordSocketConfig {
@@ -9,47 +9,10 @@ DiscordSocketConfig config = new DiscordSocketConfig {
     AlwaysDownloadUsers = true,
 };
 
-List<KeyValuePair<ulong, GuildConfig>> guilds = new List<KeyValuePair<ulong, GuildConfig>>();
 DiscordSocketClient client = new DiscordSocketClient(config);
-
-#region SlashCommands
-List<KeyValuePair<string, SlashHandler>> commands = new List<KeyValuePair<string, SlashHandler>>();
-
-AddSlashHandler("ping", (arg) => {
-    arg.RespondAsync("pong!");
-    return true;
-});
-
-AddSlashHandler("channel", (arg) => {
-    SocketGuildChannel channel = (SocketGuildChannel)arg.Data.Options.First().Value;
-    SetGuildChannel(channel.Guild.Id, channel.Id);
-    arg.RespondAsync(text: $"Counting channel set to {channel.Name}!", ephemeral: true);
-    Console.WriteLine($"New guild config {PrintGuildConfig(GetGuildConfig(channel.Guild.Id))}");
-    return true;
-});
-
-AddSlashHandler("role", (arg) => {
-    IRole role = (IRole)arg.Data.Options.First().Value;
-    SetGuildRole(role.Guild.Id, role.Id);
-    arg.RespondAsync(text: $"Counting role set to {role.Name}!", ephemeral: true);
-    Console.WriteLine($"New guild config {PrintGuildConfig(GetGuildConfig(role.Guild.Id))}");
-    return true;
-});
-
-SlashHandler? GetSlashHandler(string name) {
-    KeyValuePair<string, SlashHandler>? x = commands.FirstOrDefault(c => c.Key == name);
-    return x?.Value;
-}
-
-void AddSlashHandler(string name, SlashHandler handler) {
-    KeyValuePair<string, SlashHandler> x = new KeyValuePair<string, SlashHandler>(name, handler);
-    commands.Add(x);
-}
-
-#endregion
+Config.SetClient(client);
 
 #region functions
-
 void Cleanup() {
     Console.WriteLine("Cleaning up...");
     
@@ -59,7 +22,7 @@ void Cleanup() {
     client.Dispose();
     
     // Save the guild configs
-    string json = JsonSerializer.Serialize(guilds);
+    string json = Config.Serialize();
     File.WriteAllText("guilds.json", json);
     
     Console.WriteLine($"Wrote {json} to guilds.json!");
@@ -85,84 +48,8 @@ async void Login() {
     }
 }
 
-void SetGuildChannel(ulong guildId, ulong channelId) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
-    guildConfig.ChannelId = channelId;
-    SetGuildConfig(guildId, guildConfig);
-    SetUpGuild(guildConfig);
-}  
-
-void SetGuildRole(ulong guildId, ulong roleId) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
-    guildConfig.RoleId = roleId;
-    SetGuildConfig(guildId, guildConfig);
-}
-
-GuildConfig GetGuildConfig(ulong id) {
-    KeyValuePair<ulong, GuildConfig>? x = guilds.FirstOrDefault(g => g.Key == id);
-
-    if (x.HasValue) {
-        return x.Value.Value;
-    }
-    
-    KeyValuePair<ulong, GuildConfig> y = new KeyValuePair<ulong, GuildConfig>(id, new GuildConfig());
-    guilds.Add(y);
-    return y.Value;
-}
-
-void SetGuildConfig(ulong id, GuildConfig guildConfig) {
-    KeyValuePair<ulong, GuildConfig>? x = guilds.FirstOrDefault(g => g.Key == id);
-
-    if (x.HasValue) {
-        guilds.Remove(x.Value);
-    }
-    
-    KeyValuePair<ulong, GuildConfig> y = new KeyValuePair<ulong, GuildConfig>(id, guildConfig);
-    guilds.Add(y);
-}
-
-void SetCount(ulong guildId, GuildConfig guildConfig, ulong count) {
-    guildConfig.Count = count;
-    SetGuildConfig(guildId, guildConfig);
-}
-
-void SetLastAuthorId(ulong guildId, ulong lastAuthorId) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
-    guildConfig.LastAuthorId = lastAuthorId;
-    SetGuildConfig(guildId, guildConfig);
-}
-
-async Task SetUpGuild(GuildConfig guild) {
-    Console.WriteLine(PrintGuildConfig(guild));
-        
-    if (guild.ChannelId is null) return;
-
-    SocketTextChannel? channel = (SocketTextChannel)client.GetChannel(guild.ChannelId.Value);
-        
-    if (channel is null) return;
-
-    IAsyncEnumerable<IReadOnlyCollection<IMessage>> res = channel.GetMessagesAsync(limit: 20);
-
-    await foreach (IReadOnlyCollection<IMessage> x in res) {
-        IMessage? message = x.FirstOrDefault(message => {
-            string[] firstWord = message.CleanContent.Split(' ');
-            return firstWord.Length != 0 && ulong.TryParse(firstWord[0], out ulong _);
-        });
-
-        if (message is null) {
-            continue;
-        }
-
-        GuildConfig guildConfig = guild;
-        guildConfig.Count = ulong.Parse(message.CleanContent.Split(' ')[0]);
-        guildConfig.LastAuthorId = message.Author.Id;
-        SetGuildConfig(channel.Guild.Id, guildConfig);
-        break;
-    }
-}
-
 Task SlashCommandHandler(SocketSlashCommand arg) {
-    GetSlashHandler(arg.Data.Name)?.Invoke(arg);
+    CommandStorage.ExecuteCommand(arg);
     return Task.CompletedTask;
 }
 
@@ -172,12 +59,12 @@ async Task ClientReady() {
     
     // Read the guilds from the file
     string json = File.ReadAllText("guilds.json");
-    guilds = JsonSerializer.Deserialize<List<KeyValuePair<ulong, GuildConfig>>>(json) ?? new List<KeyValuePair<ulong, GuildConfig>>();
+    Config.DeSerialize(json);
 
     // Read the last count from the counting channel
-    foreach (KeyValuePair<ulong, GuildConfig> guild in guilds) {
+    foreach (KeyValuePair<ulong, GuildConfig> guild in Config.Guilds) {
         Console.WriteLine($"Checking guild {guild.Key}...");
-        await SetUpGuild(guild.Value);
+        await Config.SetUpGuild(guild.Value);
     }
 }
 
@@ -191,7 +78,7 @@ Task MessageReceived(SocketMessage msg) {
     }
 
     SocketGuild guild = channel.Guild;
-    GuildConfig guildConfig = GetGuildConfig(guild.Id);
+    GuildConfig guildConfig = Config.GetGuildConfig(guild.Id);
     
     // Check if bot is set up
     if (!guildConfig.RoleId.HasValue || !guildConfig.ChannelId.HasValue) {
@@ -205,19 +92,13 @@ Task MessageReceived(SocketMessage msg) {
     
     // Check if the previous message was by the same author
     if (guildConfig.LastAuthorId.HasValue && guildConfig.LastAuthorId.Value == msg.Author.Id) {
-        // Add role to user
-        (msg.Author as SocketGuildUser)?.AddRoleAsync(guild.GetRole(guildConfig.RoleId.Value));
-
-        // Send a message
-        msg.Channel.SendMessageAsync($"You are not allowed to post twice!\nThe count has been reset to 0.", messageReference: new MessageReference(msg.Id, channel.Id, guild.Id));
-
-        // Reset the count
-        SetCount(guild.Id, guildConfig, 0);
+        const string message = "You are not allowed to post twice!\nThe count has been reset to 0.";
+        Reset(msg, guild, guildConfig, channel, message);
         return Task.CompletedTask;
     }
     
     guildConfig.LastAuthorId = msg.Author.Id;
-    SetGuildConfig(guild.Id, guildConfig);
+    Config.SetGuildConfig(guild.Id, guildConfig);
 
     // Check if message is the correct number
     string firstWord = msg.CleanContent.Split(' ')[0];
@@ -228,39 +109,50 @@ Task MessageReceived(SocketMessage msg) {
         }
         
         guildConfig.Count = count;
-        SetGuildConfig(guild.Id, guildConfig);
+        Config.SetGuildConfig(guild.Id, guildConfig);
         return Task.CompletedTask;
     }
     
-    bool startsWith = msg.CleanContent.StartsWith((guildConfig.Count + 1).ToString()!);
-
+    ulong newCount = guildConfig.Count.Value + 1;
+    
+    Console.WriteLine(newCount);
+    
     // If not, reset the count
-    if (!startsWith) {
-        // Add role to user
-        (msg.Author as SocketGuildUser)?.AddRoleAsync(guild.GetRole(guildConfig.RoleId.Value));
-
-        // Send a message
-        msg.Channel.SendMessageAsync($"You messed up! The next number was {guildConfig.Count + 1}! ({firstWord}).\nThe count has been reset to 0.", messageReference: new MessageReference(msg.Id, channel.Id, guild.Id));
-
-        // Reset the count
-        SetCount(guild.Id, guildConfig, 0);
+    if (firstWord != (guildConfig.Count + 1).ToString()!) {
+        string message = $"You messed up! The next number was {guildConfig.Count + 1}! ({firstWord}).\nThe count has been reset to 0.";
+        Reset(msg, guild, guildConfig, channel, message);
         return Task.CompletedTask;
     }
     
     // If so, increment the count
-    ulong newCount = guildConfig.Count.Value + 1;
-    guildConfig.Count = newCount;
-    SetGuildConfig(guild.Id, guildConfig);
     
-    // If the count is a a power of 10, remove the role from all users
-    if (newCount > 10 && Math.Abs(Math.Pow(10, Math.Log10(newCount)) - newCount) < 0.0000001) {
-        Console.WriteLine("Power of 10 reached!");
-        // foreach (SocketGuildUser user in guild.Users) {
-        //     await user.RemoveRoleAsync(guild.GetRole(guildConfig.RoleId.Value));
-        // }
-    }
+    guildConfig.Count = newCount;
+    Config.SetGuildConfig(guild.Id, guildConfig);
+    
+    // // If the count is a a power of 10, remove the role from all users
+    // if (newCount > 10 && Math.Abs(Math.Pow(10, Math.Log10(newCount)) - newCount) < 0.0000001) {
+    //     Console.WriteLine("Power of 10 reached!");
+    // }
 
     return Task.CompletedTask;
+}
+
+void Reset(SocketMessage msg, SocketGuild guild, GuildConfig guildConfig, SocketGuildChannel channel, string message) {
+    // Check for leniency
+    if (Config.GetCount(guild.Id) < Config.GetLeniency(guild.Id)) {
+        msg.Channel.SendMessageAsync("Leniency active...", messageReference: new MessageReference(msg.Id, channel.Id, guild.Id));
+    } else {
+        // Add role to user
+        if (guildConfig.RoleId is not null) {
+            (msg.Author as SocketGuildUser)?.AddRoleAsync(guild.GetRole(guildConfig.RoleId.Value));
+        }
+    }
+
+    // Send a message
+    msg.Channel.SendMessageAsync(message, messageReference: new MessageReference(msg.Id, channel.Id, guild.Id));
+
+    // Reset the count
+    Config.SetCount(guild.Id, guildConfig, 0);
 }
 
 #endregion
@@ -271,35 +163,6 @@ client.SlashCommandExecuted += SlashCommandHandler;
 client.Ready += ClientReady;
 
 Login();
-
-#endregion
-
-#region Helper
-
-string PrintGuildConfig(GuildConfig guildConfig) {
-    return "Guild Config: {\n" +
-           $"\tChannelId: {guildConfig.ChannelId}\n" +
-           $"\tRoleId: {guildConfig.RoleId}\n" +
-           $"\tCount: {guildConfig.Count}\n" +
-           $"\tLastAuthorId: {guildConfig.LastAuthorId}\n"
-           + "}";
-}
-
-#endregion
-
-#region structs
-struct GuildConfig {
-    public GuildConfig() {
-    }
-
-    public ulong? ChannelId { get; set; } = null;
-
-    public ulong? RoleId { get; set; } = null;
-
-    public ulong? Count { get; set; } = 0;
-    
-    public ulong? LastAuthorId { get; set; } = null;
-}
 
 #endregion
 

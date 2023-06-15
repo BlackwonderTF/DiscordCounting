@@ -3,6 +3,7 @@
 using Discord;
 using Discord.Net;
 using Discord.WebSocket;
+using Helper;
 using Newtonsoft.Json;
 
 bool running = true;
@@ -14,32 +15,12 @@ DiscordSocketConfig config = new DiscordSocketConfig {
 };
 
 DiscordSocketClient client = new DiscordSocketClient(config);
+Config.SetClient(client);
 
 client.Ready += async () => {
   Console.WriteLine("Registering slash commands...");
-
-  List<SlashCommandBuilder> commands = new List<SlashCommandBuilder>() {
-    new SlashCommandBuilder()
-      .WithName("ping")
-      .WithDescription("Pong!"),
-    new SlashCommandBuilder()
-      .WithName("channel")
-      .WithDescription("Set the counting channel")
-      .AddOption(new SlashCommandOptionBuilder()
-        .WithName("channel")
-        .WithDescription("The channel to set")
-        .WithRequired(true)
-        .WithType(ApplicationCommandOptionType.Channel)),
-    new SlashCommandBuilder()
-      .WithName("role")
-      .WithDescription("Set the counting role")
-      .AddOption(new SlashCommandOptionBuilder()
-        .WithName("role")
-        .WithDescription("The role to set")
-        .WithRequired(true)
-        .WithType(ApplicationCommandOptionType.Role))
-  };
-    
+  List<SlashCommandBuilder> commands = CommandStorage.Commands.Select(command => command.Value.Build()).ToList();
+  
   foreach (SlashCommandBuilder command in commands) {
     try {
       Console.WriteLine($"Registering slash command: {command.Name}...");

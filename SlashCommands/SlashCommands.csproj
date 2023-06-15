@@ -17,4 +17,8 @@
       </None>
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Helper\Helper.csproj" />
+    </ItemGroup>
+
 </Project>
