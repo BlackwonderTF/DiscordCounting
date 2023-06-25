@@ -69,7 +69,7 @@ async Task ClientReady() {
 }
 
 Task MessageReceived(SocketMessage msg) {
-    if (msg.Author.IsBot) {
+    if (msg.Author.IsBot || msg.Author.IsWebhook || msg.Content.Length == 0) {
         return Task.CompletedTask;
     }
 
@@ -80,8 +80,8 @@ Task MessageReceived(SocketMessage msg) {
     SocketGuild guild = channel.Guild;
     GuildConfig guildConfig = Config.GetGuildConfig(guild.Id);
     
-    // Check if bot is set up
-    if (!guildConfig.RoleId.HasValue || !guildConfig.ChannelId.HasValue) {
+    // Check if bot is set up and enabled
+    if (guildConfig.IsSetUp() && !guildConfig.IsEnabled) {
         return Task.CompletedTask;
     }
     
@@ -89,7 +89,7 @@ Task MessageReceived(SocketMessage msg) {
     if (guildConfig.ChannelId.HasValue && guildConfig.ChannelId.Value != channel.Id) {
         return Task.CompletedTask;
     }
-    
+
     // Check if the previous message was by the same author
     if (guildConfig.LastAuthorId.HasValue && guildConfig.LastAuthorId.Value == msg.Author.Id) {
         const string message = "You are not allowed to post twice!\nThe count has been reset to 0.";
@@ -115,8 +115,6 @@ Task MessageReceived(SocketMessage msg) {
     
     ulong newCount = guildConfig.Count.Value + 1;
     
-    Console.WriteLine(newCount);
-    
     // If not, reset the count
     if (firstWord != (guildConfig.Count + 1).ToString()!) {
         string message = $"You messed up! The next number was {guildConfig.Count + 1}! ({firstWord}).\nThe count has been reset to 0.";
@@ -125,14 +123,8 @@ Task MessageReceived(SocketMessage msg) {
     }
     
     // If so, increment the count
-    
     guildConfig.Count = newCount;
     Config.SetGuildConfig(guild.Id, guildConfig);
-    
-    // // If the count is a a power of 10, remove the role from all users
-    // if (newCount > 10 && Math.Abs(Math.Pow(10, Math.Log10(newCount)) - newCount) < 0.0000001) {
-    //     Console.WriteLine("Power of 10 reached!");
-    // }
 
     return Task.CompletedTask;
 }

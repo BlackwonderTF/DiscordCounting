@@ -10,6 +10,7 @@ public static class CommandStorage {
     new ChannelCommand(),
     new RoleCommand(),
     new LeniencyCommand(),
+    new EnableCommand(),
   }.Select(cmd => new KeyValuePair<string, Command>(cmd.Name, cmd)).ToList();
   
   public static void ExecuteCommand(SocketSlashCommand socketSlashCommand) {

@@ -2,13 +2,13 @@
 using Discord;
 using Discord.WebSocket;
 
-namespace Helper; 
+namespace Helper;
 
 public static class Config {
-  
+
   public static List<KeyValuePair<ulong, GuildConfig>> Guilds = new List<KeyValuePair<ulong, GuildConfig>>();
   private static DiscordSocketClient? _client;
-  
+
   public static string Serialize() {
     return JsonSerializer.Serialize(Guilds);
   }
@@ -27,13 +27,13 @@ public static class Config {
       Environment.Exit(-1);
       return;
     }
-    
+
     Console.WriteLine(Config.PrintGuildConfig(guild));
-        
+
     if (guild.ChannelId is null) return;
 
     SocketTextChannel? channel = (SocketTextChannel)_client.GetChannel(guild.ChannelId.Value);
-        
+
     if (channel is null) return;
 
     IAsyncEnumerable<IReadOnlyCollection<IMessage>> res = channel.GetMessagesAsync(limit: 20);
@@ -55,7 +55,7 @@ public static class Config {
       break;
     }
   }
-  
+
   public static void SetGuildChannel(ulong guildId, ulong channelId) {
     GuildConfig guildConfig = GetGuildConfig(guildId);
     guildConfig.ChannelId = channelId;
@@ -75,7 +75,7 @@ public static class Config {
     if (x.HasValue) {
       return x.Value.Value;
     }
-    
+
     KeyValuePair<ulong, GuildConfig> y = new KeyValuePair<ulong, GuildConfig>(id, new GuildConfig());
     Guilds.Add(y);
     return y.Value;
@@ -87,7 +87,7 @@ public static class Config {
     if (x.HasValue) {
       Guilds.Remove(x.Value);
     }
-    
+
     KeyValuePair<ulong, GuildConfig> y = new KeyValuePair<ulong, GuildConfig>(id, guildConfig);
     Guilds.Add(y);
   }
@@ -109,14 +109,14 @@ public static class Config {
     guildConfig.LastAuthorId = lastAuthorId;
     SetGuildConfig(guildId, guildConfig);
   }
-  
+
   public static string PrintGuildConfig(GuildConfig guildConfig) {
-    return "Guild Config: {\n" +
-           $"\tChannelId: {guildConfig.ChannelId}\n" +
-           $"\tRoleId: {guildConfig.RoleId}\n" +
-           $"\tCount: {guildConfig.Count}\n" +
-           $"\tLastAuthorId: {guildConfig.LastAuthorId}\n" +
-           $"\tLeniency: {guildConfig.Leniency}"
+    return "Guild Config: {\n"
+           + $"\tChannelId: {guildConfig.ChannelId}\n"
+           + $"\tRoleId: {guildConfig.RoleId}\n"
+           + $"\tCount: {guildConfig.Count}\n"
+           + $"\tLastAuthorId: {guildConfig.LastAuthorId}\n"
+           + $"\tLeniency: {guildConfig.Leniency}"
            + "}";
   }
 
@@ -124,13 +124,28 @@ public static class Config {
     GuildConfig guildConfig = GetGuildConfig(guildId);
 
     guildConfig.Count ??= SetCount(guildId, guildConfig, 0);
-    
+
     return guildConfig.Count.Value;
   }
-  
+
   public static uint GetLeniency(ulong guildId) {
     GuildConfig guildConfig = GetGuildConfig(guildId);
     return guildConfig.Leniency;
+  }
+
+  public static bool IsSetUp(this GuildConfig guildConfig) {
+    return guildConfig is {ChannelId: not null, RoleId: not null};
+  }
+
+  public static void SetEnabled(ulong guildId, bool enabled) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    guildConfig.IsEnabled = enabled;
+    SetGuildConfig(guildId, guildConfig);
+  }
+
+  public static bool GetEnabled(ulong guildId) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    return guildConfig.IsEnabled;
   }
 }
 
@@ -143,4 +158,5 @@ public struct GuildConfig {
   public ulong? Count { get; set; } = null;
   public ulong? LastAuthorId { get; set; } = null;
   public uint Leniency { get; set; } = 0;
+  public bool IsEnabled { get; set; } = true;
 }
