@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Text;
+using System.Text.Json;
 using Discord;
 using Discord.WebSocket;
 
@@ -159,4 +160,19 @@ public struct GuildConfig {
   public ulong? LastAuthorId { get; set; } = null;
   public uint Leniency { get; set; } = 0;
   public bool IsEnabled { get; set; } = true;
+
+  public override string ToString() {
+    StringBuilder sb = new StringBuilder();
+    sb.Append("{\n");
+    sb.Append($"\tChannel: <#{ChannelId}>\n");
+    sb.Append($"\tRole: <@&{RoleId}>\n");
+    sb.Append($"\tLastAuthor: <@{LastAuthorId}>\n");
+    sb.Append($"\tCurrent Count: {Count}\n");
+    sb.Append($"\tLeniency: {Leniency}\n");
+    sb.Append($"\tIsEnabled: {IsEnabled}\n");
+    sb.Append($"\tIsSetUp: {this.IsSetUp()}\n");
+    sb.Append('}');
+    return sb.ToString();
+  }
+
 }

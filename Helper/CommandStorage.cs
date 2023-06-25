@@ -11,6 +11,7 @@ public static class CommandStorage {
     new RoleCommand(),
     new LeniencyCommand(),
     new EnableCommand(),
+    new ConfigCommand(),
   }.Select(cmd => new KeyValuePair<string, Command>(cmd.Name, cmd)).ToList();
   
   public static void ExecuteCommand(SocketSlashCommand socketSlashCommand) {
