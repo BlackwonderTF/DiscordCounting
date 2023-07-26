@@ -1,10 +1,11 @@
 ﻿using Discord;
+using Discord.WebSocket;
 
 namespace Helper.Definitions; 
-using SlashHandler = Func<Discord.WebSocket.SocketSlashCommand, bool>;
+using SlashHandler = Func<SocketSlashCommand, DiscordSocketClient, bool>;
 public class ConfigCommand : Command {
 
-  private new static readonly SlashHandler Handler = (arg) => {
+  private new static readonly SlashHandler Handler = (arg, _) => {
     ulong? guildId = arg.GuildId;
     if (guildId is null) {
       return false;

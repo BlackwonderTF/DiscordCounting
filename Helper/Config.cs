@@ -7,15 +7,19 @@ namespace Helper;
 
 public static class Config {
 
-  public static List<KeyValuePair<ulong, GuildConfig>> Guilds = new List<KeyValuePair<ulong, GuildConfig>>();
   private static DiscordSocketClient? _client;
 
+  public static Dictionary<ulong, GuildConfig> Guilds { get; private set; } = new Dictionary<ulong, GuildConfig>();
+
   public static string Serialize() {
+    string res = JsonSerializer.Serialize(Guilds);
     return JsonSerializer.Serialize(Guilds);
   }
 
   public static void DeSerialize(string json) {
-    Guilds = JsonSerializer.Deserialize<List<KeyValuePair<ulong, GuildConfig>>>(json) ?? new List<KeyValuePair<ulong, GuildConfig>>();
+    Guilds = JsonSerializer.Deserialize<Dictionary<ulong, GuildConfig>>(json) ?? new Dictionary<ulong, GuildConfig>();
+    // Guilds = JsonSerializer.Deserialize<List<KeyValuePair<ulong, GuildConfig>>>(json)?.ToDictionary(x => x.Key, x => x.Value) ?? new Dictionary<ulong, GuildConfig>();
+    Console.WriteLine(Guilds);
   }
 
   public static void SetClient(DiscordSocketClient client) {
@@ -29,7 +33,7 @@ public static class Config {
       return;
     }
 
-    Console.WriteLine(Config.PrintGuildConfig(guild));
+    Console.WriteLine(guild.ToString());
 
     if (guild.ChannelId is null) return;
 
@@ -71,26 +75,14 @@ public static class Config {
   }
 
   public static GuildConfig GetGuildConfig(ulong id) {
-    KeyValuePair<ulong, GuildConfig>? x = Guilds.FirstOrDefault(g => g.Key == id);
-
-    if (x.HasValue) {
-      return x.Value.Value;
-    }
-
-    KeyValuePair<ulong, GuildConfig> y = new KeyValuePair<ulong, GuildConfig>(id, new GuildConfig());
-    Guilds.Add(y);
-    return y.Value;
+    Guilds.TryAdd(id, new GuildConfig());
+    return Guilds[id];
   }
 
   public static void SetGuildConfig(ulong id, GuildConfig guildConfig) {
-    KeyValuePair<ulong, GuildConfig>? x = Guilds.FirstOrDefault(g => g.Key == id);
-
-    if (x.HasValue) {
-      Guilds.Remove(x.Value);
+    if (!Guilds.TryAdd(id, guildConfig)) {
+      Guilds[id] = guildConfig;
     }
-
-    KeyValuePair<ulong, GuildConfig> y = new KeyValuePair<ulong, GuildConfig>(id, guildConfig);
-    Guilds.Add(y);
   }
 
   public static ulong SetCount(ulong guildId, GuildConfig guildConfig, ulong count) {
@@ -111,16 +103,6 @@ public static class Config {
     SetGuildConfig(guildId, guildConfig);
   }
 
-  public static string PrintGuildConfig(GuildConfig guildConfig) {
-    return "Guild Config: {\n"
-           + $"\tChannelId: {guildConfig.ChannelId}\n"
-           + $"\tRoleId: {guildConfig.RoleId}\n"
-           + $"\tCount: {guildConfig.Count}\n"
-           + $"\tLastAuthorId: {guildConfig.LastAuthorId}\n"
-           + $"\tLeniency: {guildConfig.Leniency}"
-           + "}";
-  }
-
   public static ulong GetCount(ulong guildId) {
     GuildConfig guildConfig = GetGuildConfig(guildId);
 
@@ -134,9 +116,9 @@ public static class Config {
     return guildConfig.Leniency;
   }
 
-  public static bool IsSetUp(this GuildConfig guildConfig) {
-    return guildConfig is {ChannelId: not null, RoleId: not null};
-  }
+  // public static bool IsSetUp(this GuildConfig guildConfig) {
+  //   return guildConfig is {ChannelId: not null, RoleId: not null};
+  // }
 
   public static void SetEnabled(ulong guildId, bool enabled) {
     GuildConfig guildConfig = GetGuildConfig(guildId);
@@ -148,11 +130,68 @@ public static class Config {
     GuildConfig guildConfig = GetGuildConfig(guildId);
     return guildConfig.IsEnabled;
   }
+  
+  public static void SetEditResets(ulong guildId, bool editResets) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    guildConfig.EditResets = editResets;
+    SetGuildConfig(guildId, guildConfig);
+  }
+  
+  public static bool GetEditResets(ulong guildId) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    return guildConfig.EditResets;
+  }
+  
+  public static void SetDeleteResets(ulong guildId, bool deleteResets) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    guildConfig.DeleteResets = deleteResets;
+    SetGuildConfig(guildId, guildConfig);
+  }
+  
+  public static bool GetDeleteResets(ulong guildId) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    return guildConfig.DeleteResets;
+  }
+  
+  public static void AddInnumerate(ulong guildId, SocketGuildUser target, bool addRole = true) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    
+    if (guildConfig.RoleId is not null && addRole) {
+      target.AddRoleAsync(guildConfig.RoleId.Value);
+    }
+    
+    guildConfig.Innumerates.Add(target.Id);
+    SetGuildConfig(guildId, guildConfig);
+  }
+  
+  public static void RemoveInnumerate(ulong guildId, SocketGuildUser target, bool removeRole = true) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    
+    if (guildConfig.RoleId is not null && removeRole) {
+      target.RemoveRoleAsync(guildConfig.RoleId.Value);
+    }
+    
+    guildConfig.Innumerates.Remove(target.Id);
+    SetGuildConfig(guildId, guildConfig);
+  }
+  
+  public static bool IsInnumerate(ulong guildId, ulong innumerate) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    return guildConfig.Innumerates.Contains(innumerate);
+  }
+
+  public static void UpdateInnumerates(ulong guildId, List<ulong> configInnumerates) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    guildConfig.Innumerates = configInnumerates;
+    SetGuildConfig(guildId, guildConfig);
+  }
 }
 
 public struct GuildConfig {
   public GuildConfig() {
   }
+  
+  public bool IsSetUp => ChannelId is not null && RoleId is not null;
 
   public ulong? ChannelId { get; set; } = null;
   public ulong? RoleId { get; set; } = null;
@@ -160,6 +199,10 @@ public struct GuildConfig {
   public ulong? LastAuthorId { get; set; } = null;
   public uint Leniency { get; set; } = 0;
   public bool IsEnabled { get; set; } = true;
+  public bool EditResets { get; set; } = true;
+  public bool DeleteResets { get; set; } = true;
+  public List<ulong> Innumerates { get; set; } = new List<ulong>();
+  
 
   public override string ToString() {
     StringBuilder sb = new StringBuilder();
@@ -169,8 +212,11 @@ public struct GuildConfig {
     sb.Append($"\tLastAuthor: <@{LastAuthorId}>\n");
     sb.Append($"\tCurrent Count: {Count}\n");
     sb.Append($"\tLeniency: {Leniency}\n");
+    sb.Append($"\tEditResets: {EditResets}\n");
+    sb.Append($"\tDeleteResets: {DeleteResets}\n");
     sb.Append($"\tIsEnabled: {IsEnabled}\n");
-    sb.Append($"\tIsSetUp: {this.IsSetUp()}\n");
+    sb.Append($"\tIsSetUp: {IsSetUp}\n");
+    sb.Append($"\tInnumerates: {Innumerates.Count}\n");
     sb.Append('}');
     return sb.ToString();
   }

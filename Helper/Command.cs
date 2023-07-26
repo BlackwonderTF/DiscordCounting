@@ -1,8 +1,8 @@
-﻿using System;
+﻿using Discord.WebSocket;
 
 namespace Helper;
 using Discord;
-using SlashHandler = Func<Discord.WebSocket.SocketSlashCommand, bool>;
+using SlashHandler = Func<SocketSlashCommand, DiscordSocketClient, bool>;
 
 public abstract class Command {
   internal string Name { get; }

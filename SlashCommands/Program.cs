@@ -18,18 +18,23 @@ DiscordSocketClient client = new DiscordSocketClient(config);
 Config.SetClient(client);
 
 client.Ready += async () => {
-  Console.WriteLine("Registering slash commands...");
-  List<SlashCommandBuilder> commands = CommandStorage.Commands.Select(command => command.Value.Build()).ToList();
+  Console.WriteLine("Creating slash commands...");
+  List<SlashCommandBuilder> commands = CommandStorage.Commands.Values.Select(command => command.Build()).ToList();
+  try {
+    ApplicationCommandProperties[] globalCommands = commands.Select(x => x.Build()).Cast<ApplicationCommandProperties>().ToArray();
   
-  foreach (SlashCommandBuilder command in commands) {
     try {
-      Console.WriteLine($"Registering slash command: {command.Name}...");
-      await client.CreateGlobalApplicationCommandAsync(command.Build());
+      Console.WriteLine("Registering slash commands...");
+      await client.BulkOverwriteGlobalApplicationCommandsAsync(globalCommands);
     } catch (HttpException e) {
       string json = JsonConvert.SerializeObject(e.Errors, Formatting.Indented);
       Console.WriteLine(json);
     }
+  } catch (Exception e) {
+    Console.WriteLine(e);
+    throw;
   }
+  
 
   Console.WriteLine("Done registering slash commands!");
   Environment.Exit(0);

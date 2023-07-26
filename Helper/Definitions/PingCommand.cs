@@ -1,10 +1,12 @@
-﻿namespace Helper.Definitions;
+﻿using Discord.WebSocket;
 
-using SlashHandler = Func<Discord.WebSocket.SocketSlashCommand, bool>;
+namespace Helper.Definitions;
+
+using SlashHandler = Func<SocketSlashCommand, DiscordSocketClient, bool>;
 
 public class PingCommand : Command {
   
-  private new static readonly SlashHandler Handler = (arg) => {
+  private new static readonly SlashHandler Handler = (arg, _) => {
     arg.RespondAsync("pong!");
     return true;
   };

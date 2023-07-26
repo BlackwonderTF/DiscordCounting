@@ -1,14 +1,14 @@
 ﻿using Discord;
+using Discord.WebSocket;
 
 namespace Helper.Definitions; 
-using SlashHandler = Func<Discord.WebSocket.SocketSlashCommand, bool>;
+using SlashHandler = Func<SocketSlashCommand, DiscordSocketClient, bool>;
 public class RoleCommand : Command {
 
-  private new static readonly SlashHandler Handler = (arg) => {
+  private new static readonly SlashHandler Handler = (arg, _) => {
     IRole role = (IRole)arg.Data.Options.First().Value;
     Config.SetGuildRole(role.Guild.Id, role.Id);
     arg.RespondAsync(text: $"Counting role set to {role.Name}!", ephemeral: true);
-    Console.WriteLine($"New guild config {Config.PrintGuildConfig(Config.GetGuildConfig(role.Guild.Id))}");
     return true;
   };
 

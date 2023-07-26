@@ -2,14 +2,13 @@
 using Discord.WebSocket;
 
 namespace Helper.Definitions; 
-using SlashHandler = Func<SocketSlashCommand, bool>;
+using SlashHandler = Func<SocketSlashCommand, DiscordSocketClient, bool>;
 public class ChannelCommand : Command {
 
-  private new static readonly SlashHandler Handler = (arg) => {
+  private new static readonly SlashHandler Handler = (arg, _) => {
     SocketGuildChannel channel = (SocketGuildChannel)arg.Data.Options.First().Value;
     Config.SetGuildChannel(channel.Guild.Id, channel.Id);
     arg.RespondAsync(text: $"Counting channel set to {channel.Name}!", ephemeral: true);
-    Console.WriteLine($"New guild config {Config.PrintGuildConfig(Config.GetGuildConfig(channel.Guild.Id))}");
     return true;
   };
 

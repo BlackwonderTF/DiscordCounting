@@ -1,10 +1,11 @@
 ﻿using Discord;
+using Discord.WebSocket;
 
 namespace Helper.Definitions; 
-using SlashHandler = Func<Discord.WebSocket.SocketSlashCommand, bool>;
+using SlashHandler = Func<SocketSlashCommand, DiscordSocketClient, bool>;
 public class LeniencyCommand : Command {
 
-  private new static readonly SlashHandler Handler = (arg) => {
+  private new static readonly SlashHandler Handler = (arg, _) => {
     ulong? guildId = arg.GuildId;
     if (guildId is null) {
       return false;
@@ -13,7 +14,6 @@ public class LeniencyCommand : Command {
     long leniency = (long)arg.Data.Options.First().Value;
     Config.SetLeniency(guildId.Value, Convert.ToUInt32(leniency));
     arg.RespondAsync(text: $"Counting leniency set to {leniency}!", ephemeral: true);
-    Console.WriteLine($"New guild config {Config.PrintGuildConfig(Config.GetGuildConfig(guildId.Value))}");
     return true;
   };
 

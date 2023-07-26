@@ -5,22 +5,26 @@ using SlashHandler = System.Func<Discord.WebSocket.SocketSlashCommand, bool>;
 namespace Helper; 
 
 public static class CommandStorage {
-  public static readonly List<KeyValuePair<string, Command>> Commands = new List<Command>() {
+  public static readonly Dictionary<string, Command> Commands = new Dictionary<string, Command>(new List<Command>() {
     new PingCommand(),
     new ChannelCommand(),
     new RoleCommand(),
     new LeniencyCommand(),
     new EnableCommand(),
     new ConfigCommand(),
-  }.Select(cmd => new KeyValuePair<string, Command>(cmd.Name, cmd)).ToList();
+    new ResetsCommand(),
+    new InnumerateCommand(),
+  }.ToDictionary(cmd => cmd.Name, cmd => cmd));
   
-  public static void ExecuteCommand(SocketSlashCommand socketSlashCommand) {
+  public static void ExecuteCommand(SocketSlashCommand socketSlashCommand, DiscordSocketClient discordSocketClient) {
     try {
       // Find the command
-      KeyValuePair<string, Command> command = Commands.First(cmd => cmd.Key == socketSlashCommand.Data.Name);
+      if (!Commands.TryGetValue(socketSlashCommand.Data.Name, out Command? command)) {
+        return;
+      }
 
       // Execute the command
-      bool res = command.Value.Handler(socketSlashCommand);
+      bool res = command.Handler(socketSlashCommand, discordSocketClient);
       if (!res) {
         socketSlashCommand.RespondAsync("Something went wrong executing the command!", ephemeral: true);
       }
