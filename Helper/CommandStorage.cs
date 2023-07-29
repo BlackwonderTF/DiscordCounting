@@ -14,6 +14,7 @@ public static class CommandStorage {
     new ConfigCommand(),
     new ResetsCommand(),
     new InnumerateCommand(),
+    new RolesCommand(),
   }.ToDictionary(cmd => cmd.Name, cmd => cmd));
   
   public static void ExecuteCommand(SocketSlashCommand socketSlashCommand, DiscordSocketClient discordSocketClient) {

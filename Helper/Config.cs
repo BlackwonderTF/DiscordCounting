@@ -12,7 +12,6 @@ public static class Config {
   public static Dictionary<ulong, GuildConfig> Guilds { get; private set; } = new Dictionary<ulong, GuildConfig>();
 
   public static string Serialize() {
-    string res = JsonSerializer.Serialize(Guilds);
     return JsonSerializer.Serialize(Guilds);
   }
 
@@ -164,6 +163,12 @@ public static class Config {
     SetGuildConfig(guildId, guildConfig);
   }
   
+  public static void AddInnumerate(ulong guildId, ulong target) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    guildConfig.Innumerates.Add(target);
+    SetGuildConfig(guildId, guildConfig);
+  }
+  
   public static void RemoveInnumerate(ulong guildId, SocketGuildUser target, bool removeRole = true) {
     GuildConfig guildConfig = GetGuildConfig(guildId);
     
@@ -175,15 +180,53 @@ public static class Config {
     SetGuildConfig(guildId, guildConfig);
   }
   
+  public static void RemoveInnumerate(ulong guildId, ulong target) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    guildConfig.Innumerates.Remove(target);
+    SetGuildConfig(guildId, guildConfig);
+  }
+  
   public static bool IsInnumerate(ulong guildId, ulong innumerate) {
     GuildConfig guildConfig = GetGuildConfig(guildId);
     return guildConfig.Innumerates.Contains(innumerate);
   }
 
-  public static void UpdateInnumerates(ulong guildId, List<ulong> configInnumerates) {
+  public static void UpdateInnumerates(ulong guildId, HashSet<ulong> configInnumerates) {
     GuildConfig guildConfig = GetGuildConfig(guildId);
     guildConfig.Innumerates = configInnumerates;
     SetGuildConfig(guildId, guildConfig);
+  }
+
+  public static void AddSecondaryRole(ulong guildId, ulong newUserId, ulong roleId) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    if (!guildConfig.SecondaryRolesStorage.ContainsKey(newUserId)) {
+      guildConfig.SecondaryRolesStorage.Add(newUserId, new HashSet<ulong>());
+    }
+    guildConfig.SecondaryRolesStorage[newUserId].Add(roleId);
+    SetGuildConfig(guildId, guildConfig);
+  }
+  
+  public static void RemoveSecondaryRole(ulong guildId, ulong newUserId, ulong roleId) {
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+    if (!guildConfig.SecondaryRolesStorage.ContainsKey(newUserId)) {
+      return;
+    }
+    guildConfig.SecondaryRolesStorage[newUserId].Remove(roleId);
+    SetGuildConfig(guildId, guildConfig);
+  }
+
+  public static bool ToggleSecondaryRoleId(ulong guildId, ulong roleId) { 
+    GuildConfig guildConfig = GetGuildConfig(guildId);
+
+    bool returnValue = false;
+    if (guildConfig.SecondaryRoles.Contains(roleId)) {
+      guildConfig.SecondaryRoles.Remove(roleId);
+    } else {
+      guildConfig.SecondaryRoles.Add(roleId);
+      returnValue = true;
+    }
+    SetGuildConfig(guildId, guildConfig);
+    return returnValue;
   }
 }
 
@@ -201,7 +244,9 @@ public struct GuildConfig {
   public bool IsEnabled { get; set; } = true;
   public bool EditResets { get; set; } = true;
   public bool DeleteResets { get; set; } = true;
-  public List<ulong> Innumerates { get; set; } = new List<ulong>();
+  public HashSet<ulong> Innumerates { get; set; } = new HashSet<ulong>();
+  public HashSet<ulong> SecondaryRoles { get; set; } = new HashSet<ulong>();
+  public Dictionary<ulong, HashSet<ulong>> SecondaryRolesStorage { get; set; } = new Dictionary<ulong, HashSet<ulong>>();
   
 
   public override string ToString() {

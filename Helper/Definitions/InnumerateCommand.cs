@@ -50,7 +50,7 @@ public class InnumerateCommand : Command {
       return false;
     }
 
-    List<ulong> configInnumerates = config.Innumerates;
+    HashSet<ulong> configInnumerates = config.Innumerates;
 
     IEnumerable<IGuildUser> innumerates = users.Where(u => u.RoleIds.Contains(roleId.Value));
     foreach (IGuildUser guildUser in innumerates) {

@@ -66,21 +66,80 @@ async Task ClientReady() {
     }
 }
 
+Task GuildMemberUpdated(Cacheable<SocketGuildUser, ulong> oldCached, SocketGuildUser newUser) {
+    if (!oldCached.HasValue) {
+        return Task.CompletedTask;;
+    }
+    
+    SocketGuildUser oldUser = oldCached.Value;
+    if (Equals(oldUser.Roles.Select(x => x.Id), newUser.Roles.Select(x => x.Id))) {
+        return Task.CompletedTask;
+    }
+    
+    GuildConfig guildConfig = Config.GetGuildConfig(newUser.Guild.Id);
+    List<ulong> newUserRoles = newUser.Roles.Select(x => x.Id).ToList();
+    List<ulong> oldUserRoles = oldUser.Roles.Select(x => x.Id).ToList();
+    
+    // Check which roles got added/removed
+    List<ulong> addedRoles = newUserRoles.Except(oldUserRoles).ToList();
+    List<ulong> removedRoles = oldUserRoles.Except(newUserRoles).ToList();
+    
+    // Check if the user got the counting role
+    if (guildConfig.RoleId is not null && addedRoles.Contains(guildConfig.RoleId.Value)) {
+        // Add the user to the innumerate list
+        Config.AddInnumerate(newUser.Guild.Id, newUser.Id);
+    }
+    
+    // Check if the user got the counting role removed
+    if (guildConfig.RoleId is not null && removedRoles.Contains(guildConfig.RoleId.Value)) {
+        // Remove the user from the innumerate list
+        Config.RemoveInnumerate(newUser.Guild.Id, newUser.Id);
+    }
+    
+    // Check if the user got a secondary role
+    foreach (ulong roleId in addedRoles.Where(roleId => guildConfig.SecondaryRoles.Contains(roleId))) {
+        Config.AddSecondaryRole(newUser.Guild.Id, newUser.Id, roleId);
+    }
+    
+    // Check if the user got a secondary role removed
+    foreach (ulong roleId in removedRoles.Where(roleId => guildConfig.SecondaryRoles.Contains(roleId))) {
+        Config.RemoveSecondaryRole(newUser.Guild.Id, newUser.Id, roleId);
+    }
+
+    return Task.CompletedTask;
+}
+
 Task UserJoined(SocketGuildUser socketGuildUser) {
+    GuildConfig guildConfig = Config.GetGuildConfig(socketGuildUser.Guild.Id);
+    SecondaryRoleCheck(socketGuildUser, guildConfig);
+    
     bool isInnumerate = Config.IsInnumerate(socketGuildUser.Guild.Id, socketGuildUser.Id);
 
     if (!isInnumerate) {
         return Task.CompletedTask;
     }
 
-    GuildConfig guildConfig = Config.GetGuildConfig(socketGuildUser.Guild.Id);
-    
     if (guildConfig.RoleId is null) {
         return Task.CompletedTask;
     }
     
     socketGuildUser.AddRoleAsync(guildConfig.RoleId.Value);
+
     return Task.CompletedTask;
+}
+
+void SecondaryRoleCheck(IGuildUser socketGuildUser, GuildConfig guildConfig) {
+    if (guildConfig.SecondaryRoles.Count == 0) {
+        return;
+    }
+
+    if (!guildConfig.SecondaryRolesStorage.TryGetValue(socketGuildUser.Id, out HashSet<ulong>? roles)) {
+        return;
+    }
+
+    foreach (ulong roleId in roles) {
+        socketGuildUser.AddRoleAsync(roleId);
+    }
 }
 
 bool BotIsActive(SocketMessage msg, out SocketGuild? guild, out GuildConfig? guildConfig, out SocketTextChannel? outChannel) {
@@ -227,6 +286,7 @@ client.MessageUpdated += MessageUpdated;
 client.SlashCommandExecuted += SlashCommandHandler;
 client.Ready += ClientReady;
 client.UserJoined += UserJoined;
+client.GuildMemberUpdated += GuildMemberUpdated;
 
 Login();
 
