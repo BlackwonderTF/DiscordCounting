@@ -3,9 +3,22 @@ using Discord.WebSocket;
 
 namespace Helper.Definitions; 
 using SlashHandler = Func<SocketSlashCommand, DiscordSocketClient, bool>;
+using UserHandler = Func<SocketUserCommand, DiscordSocketClient, bool>;
 public class EnableCommand : Command {
+  
+  private new static readonly UserHandler UserHandler = (arg, _) => {
+    SocketGuildUser user = (SocketGuildUser)arg.Data.Member;
+    ulong guildId = user.Guild.Id;
 
-  private new static readonly SlashHandler Handler = (arg, _) => {
+    bool newState = !Config.GetEnabled(guildId);
+    Config.SetEnabled(guildId, newState);
+    
+    string text = newState ? "enabled" : "disabled";
+    arg.RespondAsync(text: $"Bot is currently {text}", ephemeral: true);
+    return true;
+  };
+
+  private new static readonly SlashHandler SlashHandler = (arg, _) => {
     ulong? guildId = arg.GuildId;
     if (guildId is null) {
       return false;
@@ -25,5 +38,5 @@ public class EnableCommand : Command {
       .WithType(ApplicationCommandOptionType.Boolean),
   };
   
-  internal EnableCommand() : base("enabled", "Sets the enabled state", OptionBuilder, Handler) {}
+  internal EnableCommand() : base("enabled", "Sets the enabled state", OptionBuilder, SlashHandler, UserHandler) {}
 }

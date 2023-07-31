@@ -3,6 +3,8 @@ using Discord.WebSocket;
 
 namespace Helper.Definitions; 
 using SlashHandler = Func<SocketSlashCommand, DiscordSocketClient, bool>;
+using UserHandler = Func<SocketUserCommand, DiscordSocketClient, bool>;
+
 public class InnumerateCommand : Command {
 
   private enum InnumerateChoice {
@@ -10,7 +12,28 @@ public class InnumerateCommand : Command {
     Remove = 2,
   }
   
-  private new static readonly SlashHandler Handler = (arg, client) => {
+  private new static readonly UserHandler UserHandler = (arg, client) => {
+    SocketGuildUser target = (SocketGuildUser)arg.Data.Member;
+    
+    GuildConfig config = Config.GetGuildConfig(target.Guild.Id);
+    ulong? roleId = config.RoleId;
+    
+    if (roleId is null) {
+      return false;
+    }
+    
+    if (target.Roles.Select(r => r.Id).Contains(roleId.Value)) {
+      Config.RemoveInnumerate(target.Guild.Id, target);
+      arg.RespondAsync(text: $"Removed {target.Mention} from the innumerate list", ephemeral: true);
+    } else {
+      Config.AddInnumerate(target.Guild.Id, target);
+      arg.RespondAsync(text: $"Added {target.Mention} to the innumerate list", ephemeral: true);
+    }
+    
+    return true;
+  };
+  
+  private new static readonly SlashHandler SlashHandler = (arg, client) => {
     ulong? guildId = arg.GuildId;
     if (guildId is null) {
       return false;
@@ -33,14 +56,12 @@ public class InnumerateCommand : Command {
 
     return fieldName switch {
       User => HandleInnumerate(options.Options, respond, guild, client),
-      Update => HandleInnumerateList(respond, guild, client).GetAwaiter().GetResult(),
+      Update => HandleInnumerateList(respond, guild).GetAwaiter().GetResult(),
       _ => false,
     };
-
-    
   };
 
-  private static async Task<bool> HandleInnumerateList(Func<string, Task> respond, SocketGuild guild, BaseSocketClient client) {
+  private static async Task<bool> HandleInnumerateList(Func<string, Task> respond, SocketGuild guild) {
     IEnumerable<IGuildUser>? users = await guild.GetUsersAsync().FlattenAsync();
     
     GuildConfig config = Config.GetGuildConfig(guild.Id);
@@ -116,5 +137,5 @@ public class InnumerateCommand : Command {
       .WithType(ApplicationCommandOptionType.SubCommand),
   };
   
-  internal InnumerateCommand() : base("innumerate", "Modifies the innumerate list", OptionBuilder, Handler) {}
+  internal InnumerateCommand() : base("innumerate", "Modifies the innumerate list", OptionBuilder, slashHandler: SlashHandler, userHandler: UserHandler) {}
 }

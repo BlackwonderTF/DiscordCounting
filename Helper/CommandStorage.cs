@@ -17,20 +17,39 @@ public static class CommandStorage {
     new RolesCommand(),
   }.ToDictionary(cmd => cmd.Name, cmd => cmd));
   
-  public static void ExecuteCommand(SocketSlashCommand socketSlashCommand, DiscordSocketClient discordSocketClient) {
-    try {
-      // Find the command
-      if (!Commands.TryGetValue(socketSlashCommand.Data.Name, out Command? command)) {
-        return;
-      }
+  private static Command? GetCommand(string name) {
+    return Commands.TryGetValue(name, out Command? command) ? command : null;
+  }
 
-      // Execute the command
-      bool res = command.Handler(socketSlashCommand, discordSocketClient);
+  private static void ExecuteCommand(string commandName, Func<Command, bool> callBack, Func<string, bool, Task> errorCallBack) {
+    if (GetCommand(commandName) is not { } command) {
+      return;
+    }
+    
+    try {
+      bool res = callBack(command);
+
       if (!res) {
-        socketSlashCommand.RespondAsync("Something went wrong executing the command!", ephemeral: true);
+        errorCallBack("Something went wrong executing the command!", true);
       }
     } catch (Exception _) {
-      // ignored
+      errorCallBack("Something went wrong executing the command!", true);
     }
+  }
+
+  public static void ExecuteCommand(SocketUserCommand userCommand, DiscordSocketClient discordSocketClient) {
+    ExecuteCommand(
+      userCommand.CommandName, 
+      command => command.UserHandler is not null && command.UserHandler(userCommand, discordSocketClient), 
+      (error, ephemeral) => userCommand.RespondAsync(error, ephemeral: ephemeral)
+    );
+  }
+  
+  public static void ExecuteCommand(SocketSlashCommand socketSlashCommand, DiscordSocketClient discordSocketClient) {
+    ExecuteCommand(
+      socketSlashCommand.CommandName, 
+      command => command.SlashHandler is not null && command.SlashHandler(socketSlashCommand, discordSocketClient), 
+      (error, ephemeral) => socketSlashCommand.RespondAsync(error, ephemeral: ephemeral)
+    );
   }
 }

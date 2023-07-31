@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CountingBot", "CountingBot\CountingBot.csproj", "{324468E3-832F-462B-BE28-18192D44B98E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlashCommands", "SlashCommands\SlashCommands.csproj", "{F6CE4E71-5138-4353-907F-6A5CADCA9EE3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApplicationCommands", "ApplicationCommands\ApplicationCommands.csproj", "{F6CE4E71-5138-4353-907F-6A5CADCA9EE3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Helper", "Helper\Helper.csproj", "{199A1BC8-5D65-4DF7-96B2-B085D4CDEB93}"
 EndProject

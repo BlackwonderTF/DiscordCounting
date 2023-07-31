@@ -11,5 +11,5 @@ public class PingCommand : Command {
     return true;
   };
   
-  internal PingCommand() : base("ping", "pong", Handler) {}
+  internal PingCommand() : base("ping", "pong", slashHandler: Handler) {}
 }

@@ -19,13 +19,28 @@ Config.SetClient(client);
 
 client.Ready += async () => {
   Console.WriteLine("Creating slash commands...");
-  List<SlashCommandBuilder> commands = CommandStorage.Commands.Values.Select(command => command.Build()).ToList();
+  List<SlashCommandBuilder> slashCommands = CommandStorage.Commands.Values
+    .Where(command => command.IsSlashCommand)
+    .Select(command => command.BuildSlashCommand())
+    .ToList();
+  
+  List<UserCommandBuilder> userCommands = CommandStorage.Commands.Values
+    .Where(command => command.IsUserCommand)
+    .Select(command => command.BuildUserCommand())
+    .ToList();
+  
+  
   try {
-    ApplicationCommandProperties[] globalCommands = commands.Select(x => x.Build()).Cast<ApplicationCommandProperties>().ToArray();
+    IEnumerable<ApplicationCommandProperties> globalSlashCommands = slashCommands.Select(x => x.Build()).Cast<ApplicationCommandProperties>();
+    IEnumerable<ApplicationCommandProperties> globalUserCommands = userCommands.Select(x => x.Build()).Cast<ApplicationCommandProperties>();
+
+    ApplicationCommandProperties[] allCommands = globalSlashCommands
+      .Concat(globalUserCommands)
+      .ToArray();
   
     try {
-      Console.WriteLine("Registering slash commands...");
-      await client.BulkOverwriteGlobalApplicationCommandsAsync(globalCommands);
+      Console.WriteLine("Registering commands...");
+      await client.BulkOverwriteGlobalApplicationCommandsAsync(allCommands);
     } catch (HttpException e) {
       string json = JsonConvert.SerializeObject(e.Errors, Formatting.Indented);
       Console.WriteLine(json);
@@ -36,7 +51,7 @@ client.Ready += async () => {
   }
   
 
-  Console.WriteLine("Done registering slash commands!");
+  Console.WriteLine("Done registering commands!");
   Environment.Exit(0);
 };
 
