@@ -3,13 +3,13 @@ using Discord.WebSocket;
 using Helper;
 using SlashHandler = System.Func<Discord.WebSocket.SocketSlashCommand, bool>;
 
-DiscordSocketConfig config = new DiscordSocketConfig {
+var config = new DiscordSocketConfig {
   MessageCacheSize = 1000,
   GatewayIntents = GatewayIntents.All,
   AlwaysDownloadUsers = true,
 };
 
-DiscordSocketClient client = new DiscordSocketClient(config);
+var client = new DiscordSocketClient(config);
 Config.SetClient(client);
 
 #region functions
@@ -22,7 +22,7 @@ void Cleanup() {
   client.Dispose();
     
   // Save the guild configs
-  string json = Config.Serialize();
+  var json = Config.Serialize();
   File.WriteAllText("guilds.json", json);
     
   Console.WriteLine($"Wrote {json} to guilds.json!");
@@ -30,9 +30,9 @@ void Cleanup() {
 }
 
 async void Login() {
-  string token = File.ReadAllText("token.txt");
+  var token = File.ReadAllText("token.txt");
   await client.LoginAsync(TokenType.Bot, token);
-  client.StartAsync();
+  _ = client.StartAsync();
     
   while (true) {
     Console.CancelKeyPress += delegate {
@@ -61,11 +61,11 @@ async Task ClientReady() {
   await client.SetActivityAsync(new Game("Checking your counting skills!"));
     
   // Read the guilds from the file
-  string json = File.ReadAllText("guilds.json");
+  var json = File.ReadAllText("guilds.json");
   Config.DeSerialize(json);
 
   // Read the last count from the counting channel
-  foreach (KeyValuePair<ulong, GuildConfig> guild in Config.Guilds) {
+  foreach (var guild in Config.Guilds) {
     Console.WriteLine($"Checking guild {guild.Key}...");
     await Config.SetUpGuild(guild.Value);
   }
@@ -76,18 +76,18 @@ Task GuildMemberUpdated(Cacheable<SocketGuildUser, ulong> oldCached, SocketGuild
     return Task.CompletedTask;;
   }
     
-  SocketGuildUser oldUser = oldCached.Value;
+  var oldUser = oldCached.Value;
   if (Equals(oldUser.Roles.Select(x => x.Id), newUser.Roles.Select(x => x.Id))) {
     return Task.CompletedTask;
   }
     
-  GuildConfig guildConfig = Config.GetGuildConfig(newUser.Guild.Id);
-  List<ulong> newUserRoles = newUser.Roles.Select(x => x.Id).ToList();
-  List<ulong> oldUserRoles = oldUser.Roles.Select(x => x.Id).ToList();
+  var guildConfig = Config.GetGuildConfig(newUser.Guild.Id);
+  var newUserRoles = newUser.Roles.Select(x => x.Id).ToList();
+  var oldUserRoles = oldUser.Roles.Select(x => x.Id).ToList();
     
   // Check which roles got added/removed
-  List<ulong> addedRoles = newUserRoles.Except(oldUserRoles).ToList();
-  List<ulong> removedRoles = oldUserRoles.Except(newUserRoles).ToList();
+  var addedRoles = newUserRoles.Except(oldUserRoles).ToList();
+  var removedRoles = oldUserRoles.Except(newUserRoles).ToList();
     
   // Check if the user got the counting role
   if (guildConfig.RoleId is not null && addedRoles.Contains(guildConfig.RoleId.Value)) {
@@ -102,12 +102,12 @@ Task GuildMemberUpdated(Cacheable<SocketGuildUser, ulong> oldCached, SocketGuild
   }
     
   // Check if the user got a secondary role
-  foreach (ulong roleId in addedRoles.Where(roleId => guildConfig.SecondaryRoles.Contains(roleId))) {
+  foreach (var roleId in addedRoles.Where(roleId => guildConfig.SecondaryRoles.Contains(roleId))) {
     Config.AddSecondaryRole(newUser.Guild.Id, newUser.Id, roleId);
   }
     
   // Check if the user got a secondary role removed
-  foreach (ulong roleId in removedRoles.Where(roleId => guildConfig.SecondaryRoles.Contains(roleId))) {
+  foreach (var roleId in removedRoles.Where(roleId => guildConfig.SecondaryRoles.Contains(roleId))) {
     Config.RemoveSecondaryRole(newUser.Guild.Id, newUser.Id, roleId);
   }
 
@@ -115,10 +115,10 @@ Task GuildMemberUpdated(Cacheable<SocketGuildUser, ulong> oldCached, SocketGuild
 }
 
 Task UserJoined(SocketGuildUser socketGuildUser) {
-  GuildConfig guildConfig = Config.GetGuildConfig(socketGuildUser.Guild.Id);
+  var guildConfig = Config.GetGuildConfig(socketGuildUser.Guild.Id);
   SecondaryRoleCheck(socketGuildUser, guildConfig);
     
-  bool isInnumerate = Config.IsInnumerate(socketGuildUser.Guild.Id, socketGuildUser.Id);
+  var isInnumerate = Config.IsInnumerate(socketGuildUser.Guild.Id, socketGuildUser.Id);
 
   if (!isInnumerate) {
     return Task.CompletedTask;
@@ -138,11 +138,11 @@ void SecondaryRoleCheck(IGuildUser socketGuildUser, GuildConfig guildConfig) {
     return;
   }
 
-  if (!guildConfig.SecondaryRolesStorage.TryGetValue(socketGuildUser.Id, out HashSet<ulong>? roles)) {
+  if (!guildConfig.SecondaryRolesStorage.TryGetValue(socketGuildUser.Id, out var roles)) {
     return;
   }
 
-  foreach (ulong roleId in roles) {
+  foreach (var roleId in roles) {
     socketGuildUser.AddRoleAsync(roleId);
   }
 }
@@ -178,7 +178,7 @@ bool BotIsActive(SocketMessage msg, out SocketGuild? guild, out GuildConfig? gui
 }
 
 Task MessageReceived(SocketMessage msg) {
-  if (!BotIsActive(msg, out SocketGuild? checkGuild, out GuildConfig? checkGuildConfig, out SocketTextChannel? checkChannel)) {
+  if (!BotIsActive(msg, out var checkGuild, out var checkGuildConfig, out var checkChannel)) {
     return Task.CompletedTask;
   }
 
@@ -186,7 +186,7 @@ Task MessageReceived(SocketMessage msg) {
     return Task.CompletedTask;
   }
 
-  GuildConfig guildConfig = (GuildConfig)checkGuildConfig;
+  var guildConfig = (GuildConfig)checkGuildConfig;
 
   // Check if the previous message was by the same author
   if (guildConfig.LastAuthorId.HasValue && guildConfig.LastAuthorId.Value == msg.Author.Id) {
@@ -199,10 +199,10 @@ Task MessageReceived(SocketMessage msg) {
   Config.SetGuildConfig(checkGuild.Id, guildConfig);
 
   // Check if message is the correct number
-  string firstWord = msg.CleanContent.Split(' ')[0];
+  var firstWord = msg.CleanContent.Split(' ')[0];
 
   if (guildConfig.Count is null) {
-    if (!ulong.TryParse(firstWord, out ulong count)) {
+    if (!ulong.TryParse(firstWord, out var count)) {
       return Task.CompletedTask;
     }
         
@@ -211,11 +211,19 @@ Task MessageReceived(SocketMessage msg) {
     return Task.CompletedTask;
   }
     
-  ulong newCount = guildConfig.Count.Value + 1;
+  var newCount = guildConfig.Count.Value + 1;
     
   // If not, reset the count
-  if (firstWord != (guildConfig.Count + 1).ToString()!) {
-    string message = $"You messed up! The next number was {guildConfig.Count + 1}! ({firstWord}).\nThe count has been reset to 0.";
+  if (firstWord != newCount.ToString()) {
+    var message = $"You messed up! The next number was {guildConfig.Count + 1}! ({firstWord}).\nThe count has been reset to 0.";
+    Reset(msg, checkGuild, guildConfig, checkChannel, message);
+    return Task.CompletedTask;
+  }
+  
+  // Check if the next number is in the chain
+  if (msg.CleanContent.Contains($"{newCount + 1}"))
+  {
+    const string message = "You messed up! \"You can type afterwards within the same post, but do not include the next number in the chain within the text\"!\nThe count has been reset to 0.";
     Reset(msg, checkGuild, guildConfig, checkChannel, message);
     return Task.CompletedTask;
   }
@@ -228,7 +236,7 @@ Task MessageReceived(SocketMessage msg) {
 }
 
 async Task MessageUpdated(Cacheable<IMessage, ulong> before, SocketMessage after, ISocketMessageChannel _) {
-  if (!BotIsActive(after, out SocketGuild? checkGuild, out GuildConfig? checkGuildConfig, out SocketTextChannel? checkChannel)) {
+  if (!BotIsActive(after, out var checkGuild, out var checkGuildConfig, out var checkChannel)) {
     return;
   }
     
@@ -236,8 +244,8 @@ async Task MessageUpdated(Cacheable<IMessage, ulong> before, SocketMessage after
     return;
   }
     
-  GuildConfig guildConfig = (GuildConfig)checkGuildConfig!;
-  SocketTextChannel channel = checkChannel!;
+  var guildConfig = (GuildConfig)checkGuildConfig!;
+  var channel = checkChannel!;
     
   if (!guildConfig.EditResets) {
     return;
@@ -251,7 +259,7 @@ async Task MessageUpdated(Cacheable<IMessage, ulong> before, SocketMessage after
     
   IReadOnlyCollection<IMessage>? lastMessageList = await lastMessage.FirstOrDefaultAsync();
 
-  IMessage? lastMessageObj = lastMessageList?.FirstOrDefault();
+  var lastMessageObj = lastMessageList?.FirstOrDefault();
   if (lastMessageObj is null) {
     return;
   }

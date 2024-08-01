@@ -9,7 +9,7 @@ public static class Config {
 
   private static DiscordSocketClient? _client;
 
-  public static Dictionary<ulong, GuildConfig> Guilds { get; private set; } = new Dictionary<ulong, GuildConfig>();
+  public static Dictionary<ulong, GuildConfig> Guilds { get; private set; } = new();
 
   public static string Serialize() {
     return JsonSerializer.Serialize(Guilds);
@@ -36,23 +36,23 @@ public static class Config {
 
     if (guild.ChannelId is null) return;
 
-    SocketTextChannel? channel = (SocketTextChannel)_client.GetChannel(guild.ChannelId.Value);
+    var channel = (SocketTextChannel)_client.GetChannel(guild.ChannelId.Value);
 
     if (channel is null) return;
 
     IAsyncEnumerable<IReadOnlyCollection<IMessage>> res = channel.GetMessagesAsync(limit: 20);
 
-    await foreach (IReadOnlyCollection<IMessage> x in res) {
-      IMessage? message = x.FirstOrDefault(message => {
-        string[] firstWord = message.CleanContent.Split(' ');
-        return firstWord.Length != 0 && ulong.TryParse(firstWord[0], out ulong _);
+    await foreach (var x in res) {
+      var message = x.FirstOrDefault(message => {
+        var firstWord = message.CleanContent.Split(' ');
+        return firstWord.Length != 0 && ulong.TryParse(firstWord[0], out var _);
       });
 
       if (message is null) {
         continue;
       }
 
-      GuildConfig guildConfig = guild;
+      var guildConfig = guild;
       guildConfig.Count = ulong.Parse(message.CleanContent.Split(' ')[0]);
       guildConfig.LastAuthorId = message.Author.Id;
       SetGuildConfig(channel.Guild.Id, guildConfig);
@@ -60,15 +60,15 @@ public static class Config {
     }
   }
 
-  public static void SetGuildChannel(ulong guildId, ulong channelId) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+  public static async void SetGuildChannel(ulong guildId, ulong channelId) {
+    var guildConfig = GetGuildConfig(guildId);
     guildConfig.ChannelId = channelId;
     SetGuildConfig(guildId, guildConfig);
-    SetUpGuild(guildConfig);
+    await SetUpGuild(guildConfig);
   }
 
   public static void SetGuildRole(ulong guildId, ulong roleId) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     guildConfig.RoleId = roleId;
     SetGuildConfig(guildId, guildConfig);
   }
@@ -91,19 +91,19 @@ public static class Config {
   }
 
   public static void SetLeniency(ulong guildId, uint leniency) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     guildConfig.Leniency = leniency;
     SetGuildConfig(guildId, guildConfig);
   }
 
   static void SetLastAuthorId(ulong guildId, ulong lastAuthorId) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     guildConfig.LastAuthorId = lastAuthorId;
     SetGuildConfig(guildId, guildConfig);
   }
 
   public static ulong GetCount(ulong guildId) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
 
     guildConfig.Count ??= SetCount(guildId, guildConfig, 0);
 
@@ -111,7 +111,7 @@ public static class Config {
   }
 
   public static uint GetLeniency(ulong guildId) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     return guildConfig.Leniency;
   }
 
@@ -120,40 +120,40 @@ public static class Config {
   // }
 
   public static void SetEnabled(ulong guildId, bool enabled) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     guildConfig.IsEnabled = enabled;
     SetGuildConfig(guildId, guildConfig);
   }
 
   public static bool GetEnabled(ulong guildId) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     return guildConfig.IsEnabled;
   }
   
   public static void SetEditResets(ulong guildId, bool editResets) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     guildConfig.EditResets = editResets;
     SetGuildConfig(guildId, guildConfig);
   }
   
   public static bool GetEditResets(ulong guildId) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     return guildConfig.EditResets;
   }
   
   public static void SetDeleteResets(ulong guildId, bool deleteResets) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     guildConfig.DeleteResets = deleteResets;
     SetGuildConfig(guildId, guildConfig);
   }
   
   public static bool GetDeleteResets(ulong guildId) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     return guildConfig.DeleteResets;
   }
   
   public static void AddInnumerate(ulong guildId, SocketGuildUser target, bool addRole = true) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     
     if (guildConfig.RoleId is not null && addRole) {
       target.AddRoleAsync(guildConfig.RoleId.Value);
@@ -164,13 +164,13 @@ public static class Config {
   }
   
   public static void AddInnumerate(ulong guildId, ulong target) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     guildConfig.Innumerates.Add(target);
     SetGuildConfig(guildId, guildConfig);
   }
   
   public static void RemoveInnumerate(ulong guildId, SocketGuildUser target, bool removeRole = true) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     
     if (guildConfig.RoleId is not null && removeRole) {
       target.RemoveRoleAsync(guildConfig.RoleId.Value);
@@ -181,33 +181,33 @@ public static class Config {
   }
   
   public static void RemoveInnumerate(ulong guildId, ulong target) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     guildConfig.Innumerates.Remove(target);
     SetGuildConfig(guildId, guildConfig);
   }
   
   public static bool IsInnumerate(ulong guildId, ulong innumerate) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     return guildConfig.Innumerates.Contains(innumerate);
   }
 
   public static void UpdateInnumerates(ulong guildId, HashSet<ulong> configInnumerates) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     guildConfig.Innumerates = configInnumerates;
     SetGuildConfig(guildId, guildConfig);
   }
 
   public static void AddSecondaryRole(ulong guildId, ulong newUserId, ulong roleId) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     if (!guildConfig.SecondaryRolesStorage.ContainsKey(newUserId)) {
-      guildConfig.SecondaryRolesStorage.Add(newUserId, new HashSet<ulong>());
+      guildConfig.SecondaryRolesStorage.Add(newUserId, []);
     }
     guildConfig.SecondaryRolesStorage[newUserId].Add(roleId);
     SetGuildConfig(guildId, guildConfig);
   }
   
   public static void RemoveSecondaryRole(ulong guildId, ulong newUserId, ulong roleId) {
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
     if (!guildConfig.SecondaryRolesStorage.ContainsKey(newUserId)) {
       return;
     }
@@ -216,9 +216,9 @@ public static class Config {
   }
 
   public static bool ToggleSecondaryRoleId(ulong guildId, ulong roleId) { 
-    GuildConfig guildConfig = GetGuildConfig(guildId);
+    var guildConfig = GetGuildConfig(guildId);
 
-    bool returnValue = false;
+    var returnValue = false;
     if (guildConfig.SecondaryRoles.Contains(roleId)) {
       guildConfig.SecondaryRoles.Remove(roleId);
     } else {
@@ -244,13 +244,13 @@ public struct GuildConfig {
   public bool IsEnabled { get; set; } = true;
   public bool EditResets { get; set; } = true;
   public bool DeleteResets { get; set; } = true;
-  public HashSet<ulong> Innumerates { get; set; } = new HashSet<ulong>();
-  public HashSet<ulong> SecondaryRoles { get; set; } = new HashSet<ulong>();
+  public HashSet<ulong> Innumerates { get; set; } = [];
+  public HashSet<ulong> SecondaryRoles { get; set; } = [];
   public Dictionary<ulong, HashSet<ulong>> SecondaryRolesStorage { get; set; } = new Dictionary<ulong, HashSet<ulong>>();
   
 
   public override string ToString() {
-    StringBuilder sb = new StringBuilder();
+    var sb = new StringBuilder();
     sb.Append("{\n");
     sb.Append($"\tChannel: <#{ChannelId}>\n");
     sb.Append($"\tRole: <@&{RoleId}>\n");

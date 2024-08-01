@@ -18,7 +18,7 @@ public static class CommandStorage {
   }.ToDictionary(cmd => cmd.Name, cmd => cmd));
   
   private static Command? GetCommand(string name) {
-    return Commands.TryGetValue(name, out Command? command) ? command : null;
+    return Commands.GetValueOrDefault(name);
   }
 
   private static void ExecuteCommand(string commandName, Func<Command, bool> callBack, Func<string, bool, Task> errorCallBack) {
@@ -27,12 +27,12 @@ public static class CommandStorage {
     }
     
     try {
-      bool res = callBack(command);
+      var res = callBack(command);
 
       if (!res) {
         errorCallBack("Something went wrong executing the command!", true);
       }
-    } catch (Exception _) {
+    } catch (Exception) {
       errorCallBack("Something went wrong executing the command!", true);
     }
   }

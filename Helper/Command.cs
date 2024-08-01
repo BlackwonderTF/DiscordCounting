@@ -26,7 +26,7 @@ public abstract class Command {
   }
   
   public UserCommandBuilder BuildUserCommand() {
-    UserCommandBuilder builder = new UserCommandBuilder()
+    var builder = new UserCommandBuilder()
       .WithName(Name)
       .WithDefaultPermission(false)
       .WithDMPermission(false);
@@ -35,7 +35,7 @@ public abstract class Command {
   }
 
   public SlashCommandBuilder BuildSlashCommand() {
-    SlashCommandBuilder builder = new SlashCommandBuilder()
+    var builder = new SlashCommandBuilder()
       .WithName(Name)
       .WithDescription(Description)
       .WithDefaultPermission(false)
